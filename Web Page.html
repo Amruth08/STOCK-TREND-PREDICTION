@@ -1,0 +1,146 @@
+from flask import Flask, render_template, request, redirect, url_for
+import yfinance as yf
+from datetime import datetime
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import MinMaxScaler
+from keras.models import Sequential 
+from keras.layers import Dense, LSTM 
+import io
+import base64
+
+app = Flask(__name__)
+
+def plot_to_img(fig):
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    buf.seek(0)
+    img = base64.b64encode(buf.getvalue()).decode("utf-8")
+    return img
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/process', methods=['POST'])
+def process():
+    stock = request.form['stock']
+    end = datetime.now()
+    start = datetime(end.year-20, end.month, end.day)
+    google_data = yf.download(stock, start, end)
+
+    head = google_data.head().to_html()
+    shape = google_data.shape
+    description = google_data.describe().to_html()
+    info_buf = io.StringIO()
+    google_data.info(buf=info_buf)
+    info = info_buf.getvalue()
+    missing_values = google_data.isna().sum().to_frame().to_html()
+
+    plt.figure(figsize=(15, 5))
+    google_data['Adj Close'].plot()
+    plt.xlabel("Years")
+    plt.ylabel("Adj Close")
+    plt.title("Closing price of Google data")
+    fig = plt.gcf()
+    adj_close_plot = plot_to_img(fig)
+
+    graphs = []
+    for column in google_data.columns:
+        plt.figure(figsize=(15, 5))
+        google_data[column].plot()
+        plt.xlabel("Years")
+        plt.ylabel(column)
+        plt.title(f"{column} of Google data")
+        fig = plt.gcf()
+        graphs.append(plot_to_img(fig))
+
+    temp_data = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    temp_avg = sum(temp_data[1:6]) / 5
+
+    data = pd.DataFrame(temp_data)
+    data['MA'] = data.rolling(5).mean()
+    data_with_ma = data.to_html()
+
+    yearly_counts = {i: list(google_data.index.year).count(i) for i in range(2004, 2025)}
+
+    google_data['MA_for_250_days'] = google_data['Adj Close'].rolling(250).mean()
+    plt.figure(figsize=(15, 5))
+    google_data['MA_for_250_days'].plot()
+    plt.xlabel("Years")
+    plt.ylabel("MA_for_250_days")
+    plt.title("MA_for_250_days of Google data")
+    fig = plt.gcf()
+    ma_250_plot = plot_to_img(fig)
+
+    google_data['MA_for_100_days'] = google_data['Adj Close'].rolling(100).mean()
+    plt.figure(figsize=(15, 5))
+    google_data['MA_for_100_days'].plot()
+    plt.xlabel("Years")
+    plt.ylabel("MA_for_100_days")
+    plt.title("MA_for_100_days of Google data")
+    fig = plt.gcf()
+    ma_100_plot = plot_to_img(fig)
+
+    google_data['percentage_change_cp'] = google_data['Adj Close'].pct_change()
+    plt.figure(figsize=(15, 5))
+    google_data['percentage_change_cp'].plot()
+    plt.xlabel("Years")
+    plt.ylabel("percentage_change")
+    plt.title("percentage_change of Google data")
+    fig = plt.gcf()
+    percentage_change_plot = plot_to_img(fig)
+
+    Adj_close_price = google_data[['Adj Close']]
+    max_price = max(Adj_close_price.values)
+    min_price = min(Adj_close_price.values)
+
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaled_data = scaler.fit_transform(Adj_close_price)
+    x_data, y_data = [], []
+
+    for i in range(100, len(scaled_data)):
+        x_data.append(scaled_data[i-100:i])
+        y_data.append(scaled_data[i])
+
+    x_data, y_data = np.array(x_data), np.array(y_data)
+    splitting_len = int(len(x_data) * 0.7)
+    x_train, y_train = x_data[:splitting_len], y_data[:splitting_len]
+    x_test, y_test = x_data[splitting_len:], y_data[splitting_len:]
+
+    model = Sequential()
+    model.add(LSTM(128, return_sequences=True, input_shape=(x_train.shape[1], 1)))
+    model.add(LSTM(64, return_sequences=False))
+    model.add(Dense(25))
+    model.add(Dense(1))
+    model.compile(optimizer='adam', loss='mean_squared_error')
+    model.fit(x_train, y_train, batch_size=1, epochs=2)
+    model_summary = model.summary()
+
+    predictions = model.predict(x_test)
+    inv_predictions = scaler.inverse_transform(predictions)
+    inv_y_test = scaler.inverse_transform(y_test)
+    rmse = np.sqrt(np.mean((inv_predictions - inv_y_test) ** 2))
+
+    plotting_data = pd.DataFrame({
+        'original_test_data': inv_y_test.reshape(-1),
+        'predictions': inv_predictions.reshape(-1)
+    }, index=google_data.index[splitting_len+100:])
+
+    plt.figure(figsize=(15, 6))
+    plotting_data.plot()
+    plt.title('Test Data')
+    fig = plt.gcf()
+    test_data_plot = plot_to_img(fig)
+
+    return render_template('results.html', head=head, shape=shape, description=description, info=info,
+                           missing_values=missing_values, adj_close_plot=adj_close_plot, graphs=graphs,
+                           temp_avg=temp_avg, data_with_ma=data_with_ma, yearly_counts=yearly_counts,
+                           ma_250_plot=ma_250_plot, ma_100_plot=ma_100_plot, percentage_change_plot=percentage_change_plot,
+                           max_price=max_price, min_price=min_price, scaled_data_length=len(scaled_data),
+                           x_train_shape=x_train.shape, y_train_shape=y_train.shape, x_test_shape=x_test.shape,
+                           y_test_shape=y_test.shape, model_summary=model_summary, rmse=rmse, test_data_plot=test_data_plot)
+
+if __name__ == '__main__':
+    app.run(debug=True)
