@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Results</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #4CAF50;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+            margin-top: 20px;
+        }
+        p {
+            color: #666;
+        }
+        pre {
+            background-color: #f4f4f4;
+            border: 1px solid #ddd;
+            padding: 10px;
+            overflow-x: auto;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            margin-top: 10px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        ul li {
+            background-color: #eee;
+            margin: 5px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Results</h1>
+
+        <h2>Head of the Data</h2>
+        {{ head|safe }}
+
+        <h2>Shape of the Data</h2>
+        <p>{{ shape }}</p>
+
+        <h2>Description of the Data</h2>
+        {{ description|safe }}
+
+        <h2>Info of the Data</h2>
+        <pre>{{ info }}</pre>
+
+        <h2>Missing Values</h2>
+        {{ missing_values|safe }}
+
+        <h2>Adjusted Close Price</h2>
+        <img src="data:image/png;base64,{{ adj_close_plot }}" alt="Adj Close Plot">
+
+        <h2>Graphs</h2>
+        {% for graph in graphs %}
+            <img src="data:image/png;base64,{{ graph }}" alt="Graph">
+        {% endfor %}
+
+        <h2>Temp Data Average</h2>
+        <p>{{ temp_avg }}</p>
+
+        <h2>Data with Moving Average</h2>
+        {{ data_with_ma|safe }}
+
+        <h2>Yearly Counts</h2>
+        <ul>
+            {% for year, count in yearly_counts.items() %}
+                <li>{{ year }}: {{ count }}</li>
+            {% endfor %}
+        </ul>
+
+        <h2>250 Days Moving Average</h2>
+        <img src="data:image/png;base64,{{ ma_250_plot }}" alt="MA 250 Plot">
+
+        <h2>100 Days Moving Average</h2>
+        <img src="data:image/png;base64,{{ ma_100_plot }}" alt="MA 100 Plot">
+
+        <h2>Percentage Change</h2>
+        <img src="data:image/png;base64,{{ percentage_change_plot }}" alt="Percentage Change Plot">
+
+        <h2>Adjusted Close Price Range</h2>
+        <p>Max: {{ max_price }}, Min: {{ min_price }}</p>
+
+        <h2>Scaled Data Length</h2>
+        <p>{{ scaled_data_length }}</p>
+
+        <h2>Training Data Shape</h2>
+        <p>{{ x_train_shape }}</p>
+        <p>{{ y_train_shape }}</p>
+
+        <h2>Test Data Shape</h2>
+        <p>{{ x_test_shape }}</p>
+        <p>{{ y_test_shape }}</p>
+
+        <h2>Model Summary</h2>
+        <pre>{{ model_summary }}</pre>
+
+        <h2>Root Mean Square Error</h2>
+        <p>{{ rmse }}</p>
+
+        <h2>Test Data Plot</h2>
+        <img src="data:image/png;base64,{{ test_data_plot }}" alt="Test Data Plot">
+    </div>
+</body>
+</html>
